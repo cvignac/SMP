@@ -1,0 +1,8 @@
+# Model properties
+model_name: SMP
+num_layers: 8
+hidden_u: 64
+num_towers: 8
+out_u: 32
+hidden_gru: 16
+type: A
