@@ -24,7 +24,7 @@ pip install -r requirements.txt
 ## Dataset generation
 
 ### Cycle detection
-First, download the data from https://1drv.ms/u/s!AolX0ZTx8B-GaoNMtZVmRvsUASs?e=cmtwIm
+First, download the data from https://drive.switch.ch/index.php/s/nwbGJASmgYd0mU6
 and unzip it in data/datasets_kcycle_nsamples=10000. Then, run
 
 ```
