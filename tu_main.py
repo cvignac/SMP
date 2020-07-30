@@ -20,7 +20,7 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--epochs', type=int, default=2)
+parser.add_argument('--epochs', type=int, default=500)
 parser.add_argument('--save-model', action='store_true',
                     help='Save the model once training is done')
 parser.add_argument('--wandb', action='store_true',
@@ -31,8 +31,8 @@ parser.add_argument('--batch-size', type=int, default=32)
 parser.add_argument('--weight-decay', type=float, default=0.000001)
 parser.add_argument('--clip', type=float, default=10, help="Gradient clipping")
 parser.add_argument('--name', type=str, help="Name for weights and biases")
-parser.add_argument('--lr_decay_factor', type=float, default=0.5)
-parser.add_argument('--lr_decay_step_size', type=int, default=100)
+parser.add_argument('--lr_decay_factor', type=float, default=0.9)
+parser.add_argument('--lr_decay_step_size', type=int, default=50)
 args = parser.parse_args()
 
 # Log parameters
