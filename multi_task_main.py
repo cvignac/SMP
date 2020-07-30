@@ -1,7 +1,7 @@
 from __future__ import division
 from __future__ import print_function
 import yaml
-from multi_task_utils.train import execute_train, build_arg_parser
+from utils.train import execute_train, build_arg_parser
 
 # Training settings
 parser = build_arg_parser()

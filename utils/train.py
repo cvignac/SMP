@@ -13,7 +13,7 @@ import torch.optim as optim
 import numpy.random as npr
 from torch_geometric.data import DataLoader
 from models.smp_multi_task import SMP
-from multi_task_utils.util import load_dataset, to_torch_geom, specific_loss_torch_geom
+from utils.util import load_dataset, to_torch_geom, specific_loss_torch_geom
 
 log_loss_tasks = ["log_shortest_path", "log_eccentricity", "log_laplacian",
                   "log_connected", "log_diameter", "log_radius"]

@@ -15,6 +15,12 @@ class SimpleTypeASMPLayer(MessagePassing):
         else:
             self.alpha = nn.Parameter(torch.zeros(1, 1, out_features), requires_grad=True)
 
+    def reset_parameters(self):
+        self.message_nn.reset_parameters()
+        self.alpha.requires_grad_(False)
+        self.alpha[...] = 0
+        self.alpha.requires_grad_(True)
+
     def forward(self, u, edge_index, batch_info):
         """ x corresponds either to node features or to the local context, depending on use_x."""
         n = batch_info['num_nodes']

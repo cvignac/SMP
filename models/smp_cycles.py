@@ -8,7 +8,7 @@ from models.utils.misc import create_batch_info
 
 class SMP(torch.nn.Module):
     def __init__(self, num_input_features: int, num_classes: int, num_layers: int, hidden: int,
-                 hidden_final: int, dropout_prob: float, use_batch_norm: bool, use_x: bool):
+                 hidden_final: int, dropout_prob: float, use_batch_norm: bool, use_x: bool, use_after_conv: bool):
         super().__init__()
         self.use_x = use_x
         self.dropout_prob = dropout_prob
@@ -30,6 +30,7 @@ class SMP(torch.nn.Module):
             self.feature_extractors.append(GraphExtractor(in_features=hidden, out_features=hidden_final, use_x=use_x))
 
         # Last layers
+        self.use_after_conv = use_after_conv
         self.after_conv = nn.Linear(hidden_final, hidden_final)
         self.final_lin = nn.Linear(hidden_final, num_classes)
 
@@ -58,10 +59,16 @@ class SMP(torch.nn.Module):
             out += global_features / len(self.convs)
 
         # Two layer MLP with dropout and residual connections:
-        out = torch.relu(self.after_conv(out)) + out
+        if self.use_after_conv:
+            out = torch.relu(self.after_conv(out)) + out
         out = F.dropout(out, p=self.dropout_prob, training=self.training)
         out = self.final_lin(out)
         return F.log_softmax(out, dim=-1)
+
+    def reset_parameters(self):
+        for layer in [self.no_prop, self.initial_lin, *self.convs, *self.batch_norm_list, *self.feature_extractors,
+                      self.after_conv, self.final_lin]:
+            layer.reset_parameters()
 
     def __repr__(self):
         return self.__class__.__name__

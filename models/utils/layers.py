@@ -37,6 +37,9 @@ class BatchNorm(nn.Module):
         self.bn = nn.BatchNorm1d(channels)
         self.use_x = use_x
 
+    def reset_parameters(self):
+        self.bn.reset_parameters()
+
     def forward(self, u):
         if self.use_x:
             return self.bn(u)
@@ -103,6 +106,10 @@ class UtoU(nn.Module):
         self.lin1 = Linear(in_features, out_features, bias, gain)
         self.lin2 = Linear(in_features, out_features, False, 0.1 * gain)
         self.lin3 = Linear(in_features, out_features, False, 0.1 * gain)
+
+    def reset_parameters(self):
+        for layer in [self.lin1, self.lin2, self.lin3]:
+            layer.reset_parameters()
 
     def forward(self, u: Tensor, batch_info: dict):
         n = batch_info['num_nodes']
@@ -173,6 +180,10 @@ class UtoGlobal(nn.Module):
         self.lin1 = Linear(in_features, out_features, bias, gain=gain)
         self.lin2 = Linear(in_features, out_features, bias, gain=gain)
 
+    def reset_parameters(self):
+        for layer in [self.lin1, self.lin2]:
+            layer.reset_parameters()
+
     def forward(self, u, batch_info: dict, method='mean'):
         """ u: (num_nodes, colors, in_features)
             output: (batch_size, out_features). """
@@ -226,6 +237,10 @@ class GraphExtractor(nn.Module):
         self.use_x = use_x
         self.extractor = (XtoGlobal if self.use_x else UtoGlobal)(in_features, out_features, True, 1)
         self.lin = nn.Linear(out_features, out_features)
+
+    def reset_parameters(self):
+        for layer in [self.extractor, self.lin]:
+            layer.reset_parameters()
 
     def forward(self, u: Tensor, batch_info: dict):
         out = self.extractor(u, batch_info)

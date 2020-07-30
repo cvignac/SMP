@@ -1,0 +1,9 @@
+models/__pycache__/
+idea/
+.DS_Store
+data/
+multi_task_utils/__pycache__/
+__pycache__/
+utils/__pycache__/
+wandb/
+data/.DS_Store
