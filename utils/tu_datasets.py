@@ -4,6 +4,7 @@ import torch
 from torch_geometric.datasets import TUDataset
 from torch_geometric.utils import degree
 import torch_geometric.transforms as T
+from models.utils.transforms import KHopColoringTransform
 
 
 class NormalizedDegree(object):
@@ -18,7 +19,7 @@ class NormalizedDegree(object):
         return data
 
 
-def get_dataset(name, sparse=True, cleaned=False):
+def get_dataset(name, k, sparse=True, cleaned=False):
     if osp.isdir('/datasets2/'):
         rootdir = '/datasets2/TU_DATASETS/'
         path = osp.join(rootdir, name)
@@ -26,7 +27,13 @@ def get_dataset(name, sparse=True, cleaned=False):
         path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
         print("Warning: local dataset was stored locally")
 
-    dataset = TUDataset(path, name, cleaned=cleaned)
+    transform = None
+    if name in ['REDDIT-BINARY', 'REDDIT-5K']:
+        transform = KHopColoringTransform(k)
+    else:
+        transform = None
+
+    dataset = TUDataset(path, name, transform, cleaned=cleaned)
     dataset.data.edge_attr = None
 
     if dataset.data.x is None:
@@ -47,24 +54,5 @@ def get_dataset(name, sparse=True, cleaned=False):
         for data in dataset:
             num_nodes += data.num_nodes
             max_num_nodes = max(data.num_nodes, max_num_nodes)
-
-        # Filter out a few really large graphs in order to apply DiffPool.
-        # Removed because of a bug
-        # if name == 'REDDIT-BINARY':
-        #     num_nodes = min(int(num_nodes / len(dataset) * 1.5), max_num_nodes)
-        # else:
-        #     num_nodes = min(int(num_nodes / len(dataset) * 5), max_num_nodes)
-
-        # indices = []
-        # for i, data in enumerate(dataset):
-        #     if data.num_nodes <= num_nodes:
-        #         indices.append(i)
-        # dataset = dataset[torch.tensor(indices)]
-        # print(indices)
-        # if dataset.transform is None:
-        #     dataset.transform = T.ToDense(num_nodes)
-        # else:
-        #     dataset.transform = T.Compose(
-        #         [dataset.transform, T.ToDense(num_nodes)])
 
     return dataset

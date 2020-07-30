@@ -8,12 +8,11 @@ from torch.optim import Adam
 from sklearn.model_selection import StratifiedKFold
 from torch_geometric.data import DataLoader, DenseDataLoader as DenseLoader
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
                                   lr, lr_decay_factor, lr_decay_step_size,
-                                  weight_decay, use_wandb, logger=None):
+                                  weight_decay, use_wandb, device, logger=None):
 
     val_losses, accs, durations = [], [], []
     for fold, (train_idx, test_idx,
@@ -35,15 +34,13 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
         model.to(device).reset_parameters()
         optimizer = Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
 
         t_start = time.perf_counter()
 
         for epoch in range(1, epochs + 1):
-            train_loss = train(model, optimizer, train_loader)
-            val_losses.append(eval_loss(model, val_loader))
-            accs.append(eval_acc(model, test_loader))
+            train_loss = train(model, optimizer, train_loader, device)
+            val_losses.append(eval_loss(model, val_loader, device))
+            accs.append(eval_acc(model, test_loader, device))
             eval_info = {
                 'fold': fold,
                 'epoch': epoch,
@@ -71,14 +68,15 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
     loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
     loss, acc = loss.view(folds, epochs), acc.view(folds, epochs)
     average_per_epoch = torch.mean(acc, dim=0)
-    average_best_epoch, best_epoch = average_per_epoch.max(dim=0)
+    mean_acc_best_epoch, best_epoch = average_per_epoch.max(dim=0)
     final_std = acc[:, best_epoch].std()
     if use_wandb:
         wandb.run.summary["Best epoch"] = best_epoch
-        wandb.run.summary["Final accuracy"] = average_best_epoch
+        wandb.run.summary["Final accuracy"] = mean_acc_best_epoch
         wandb.run.summary["Final std"] = final_std
-    print(f"Best epoch {best_epoch} - Final accuracy {average_best_epoch} +- {final_std}")
+    print(f"Best epoch {best_epoch} - Final accuracy {mean_acc_best_epoch} +- {final_std}")
     print("Accuracy at best epoch:", acc[:, best_epoch])
+    return best_epoch, mean_acc_best_epoch, final_std
 
 
 
@@ -106,7 +104,7 @@ def num_graphs(data):
         return data.x.size(0)
 
 
-def train(model, optimizer, loader):
+def train(model, optimizer, loader, device):
     model.train()
 
     total_loss = 0
@@ -121,7 +119,7 @@ def train(model, optimizer, loader):
     return total_loss / len(loader.dataset)
 
 
-def eval_acc(model, loader):
+def eval_acc(model, loader, device):
     model.eval()
 
     correct = 0
@@ -133,7 +131,7 @@ def eval_acc(model, loader):
     return correct / len(loader.dataset)
 
 
-def eval_loss(model, loader):
+def eval_loss(model, loader, device):
     model.eval()
 
     loss = 0

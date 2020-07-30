@@ -128,7 +128,6 @@ def total_loss(output, target, loss='mse', only_nodes=False, only_graph=False):
     return weighted_average
 
 
-
 def total_loss_multiple_batches(output, target, loss='mse', only_nodes=False, only_graph=False):
     """ returns the average of the average losses of each task over all batches,
         batches are weighted equally regardless of their cardinality or graph size """

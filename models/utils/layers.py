@@ -232,9 +232,9 @@ class NodeExtractor(nn.Module):
 
 
 class GraphExtractor(nn.Module):
-    def __init__(self, in_features: int, out_features: int, use_x: bool):
+    def __init__(self, in_features: int, out_features: int, use_x: bool, simplified=False):
         super().__init__()
-        self.use_x = use_x
+        self.use_x, self.simplified = use_x, simplified
         self.extractor = (XtoGlobal if self.use_x else UtoGlobal)(in_features, out_features, True, 1)
         self.lin = nn.Linear(out_features, out_features)
 
@@ -244,5 +244,7 @@ class GraphExtractor(nn.Module):
 
     def forward(self, u: Tensor, batch_info: dict):
         out = self.extractor(u, batch_info)
+        if self.simplified:
+            return out
         out = out + self.lin(F.relu(out))
         return out

@@ -1,20 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
-
 import os
 import torch
-import torch.nn.functional as F
-from torch_geometric.data import DataLoader
-from torch_geometric.transforms import OneHotDegree
-from torch_geometric.datasets import TUDataset
+from itertools import product
 import argparse
 import numpy as np
-import time
 import yaml
 from models.smp_cycles import SMP
-from models.gin import GIN
-from models.utils.transforms import EyeTransform, RandomId, DenseAdjMatrix
-from models import ppgn
 from train_eval_tu import cross_validation_with_val_set
 from utils.tu_datasets import get_dataset
 
@@ -28,7 +20,7 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--epochs', type=int, default=300)
+parser.add_argument('--epochs', type=int, default=2)
 parser.add_argument('--save-model', action='store_true',
                     help='Save the model once training is done')
 parser.add_argument('--wandb', action='store_true',
@@ -79,33 +71,55 @@ if args.wandb:
 
 # Load the data
 dataset_name = model_config.pop('dataset_name', None)
-dataset = get_dataset(dataset_name, sparse=False)
-
-print(model_config)
-model = SMP(**model_config, num_input_features= 1 + dataset.num_node_features,
-            num_classes=dataset.num_classes).to(device)
-
-optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.5, weight_decay=args.weight_decay)
-
-def logger(info):
-    fold, epoch = info['fold'] + 1, info['epoch']
-    val_loss, test_acc = info['val_loss'], info['test_acc']
-    print('{:02d}/{:03d}: Train Loss: {:.4f}, Val Loss: {:.4f}, Test Accuracy: {:.3f}, Learning Rate: {:.5f}'.format(
-        fold, epoch, info['train_loss'], val_loss, test_acc, info['lr']))
+dataset = get_dataset(dataset_name, model_config['num_layers'], sparse=False)
 
 
-cross_validation_with_val_set(
-            dataset, model, folds=10,
-            epochs=args.epochs,
-            batch_size=args.batch_size,
-            lr=args.lr,
-            lr_decay_factor=args.lr_decay_factor,
-            lr_decay_step_size=args.lr_decay_step_size,
-            weight_decay=0,
-            use_wandb=args.wandb,
-            logger=logger)
+def run_config(model_config):
+    print(model_config)
+    model = SMP(**model_config, num_input_features= 1 + dataset.num_node_features,
+                num_classes=dataset.num_classes).to(device)
 
-print("Done.")
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.5, weight_decay=args.weight_decay)
+
+    def logger(info):
+        fold, epoch = info['fold'] + 1, info['epoch']
+        val_loss, test_acc = info['val_loss'], info['test_acc']
+        print('{:02d}/{:03d}: Train Loss: {:.4f}, Val Loss: {:.4f}, Test Accuracy: {:.3f}, Learning Rate: {:.5f}'.format(
+            fold, epoch, info['train_loss'], val_loss, test_acc, info['lr']))
+
+    best_epoch, mean_acc_best_epoch, final_std = cross_validation_with_val_set(
+                dataset, model, folds=10,
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                lr=args.lr,
+                lr_decay_factor=args.lr_decay_factor,
+                lr_decay_step_size=args.lr_decay_step_size,
+                weight_decay=0,
+                use_wandb=args.wandb,
+                device=device,
+                logger=logger)
+    print("Done.")
+    return best_epoch, mean_acc_best_epoch, final_std
+
+
+n_layers = [1, 3]
+hidden_f = [64, 128]
+
+results = []
+for layers, hidden in product(n_layers, hidden_f):
+    model_config['num_layers'] = layers
+    model_config['hidden_final'] = hidden
+    epoch, acc, std = run_config(model_config)
+    results.append([layers, hidden, acc, std, epoch])
+
+results = np.array(results)
+if args.wandb:
+    wandb.run.summary["Final results"] = results
+
+print("Dataset:", dataset_name)
+for res in results:
+    print("{} layers - {} hidden final: Average acc = {} +- {}, best epoch at {}".format(*res))
+
 
 
 

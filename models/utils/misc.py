@@ -1,5 +1,6 @@
 import torch
 
+
 def create_batch_info(data, edge_counter):
     """ Compute some information about the batch that will be used by SMP."""
     x, edge_index, batch, batch_size = data.x, data.edge_index, data.batch, data.num_graphs

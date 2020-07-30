@@ -8,7 +8,8 @@ from models.utils.misc import create_batch_info
 
 class SMP(torch.nn.Module):
     def __init__(self, num_input_features: int, num_classes: int, num_layers: int, hidden: int,
-                 hidden_final: int, dropout_prob: float, use_batch_norm: bool, use_x: bool, use_after_conv: bool):
+                 hidden_final: int, dropout_prob: float, use_batch_norm: bool, use_x: bool,
+                 simplified: bool):
         super().__init__()
         self.use_x = use_x
         self.dropout_prob = dropout_prob
@@ -27,17 +28,17 @@ class SMP(torch.nn.Module):
         for i in range(0, num_layers):
             self.convs.append(SimpleTypeASMPLayer(in_features=hidden, out_features=hidden, use_x=use_x))
             self.batch_norm_list.append(BatchNorm(hidden, use_x))
-            self.feature_extractors.append(GraphExtractor(in_features=hidden, out_features=hidden_final, use_x=use_x))
+            self.feature_extractors.append(GraphExtractor(in_features=hidden, out_features=hidden_final, use_x=use_x,
+                                                          simplified=simplified))
 
         # Last layers
-        self.use_after_conv = use_after_conv
+        self.simplified = simplified
         self.after_conv = nn.Linear(hidden_final, hidden_final)
         self.final_lin = nn.Linear(hidden_final, num_classes)
 
     def forward(self, data):
         """ data.x: (num_nodes, num_features)"""
         x, edge_index = data.x, data.edge_index
-
         batch_info = create_batch_info(data, self.edge_counter)
 
         # Create the context matrix
@@ -59,7 +60,7 @@ class SMP(torch.nn.Module):
             out += global_features / len(self.convs)
 
         # Two layer MLP with dropout and residual connections:
-        if self.use_after_conv:
+        if not self.simplified:
             out = torch.relu(self.after_conv(out)) + out
         out = F.dropout(out, p=self.dropout_prob, training=self.training)
         out = self.final_lin(out)
