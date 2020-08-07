@@ -73,10 +73,19 @@ if args.wandb:
 dataset_name = model_config.pop('dataset_name', None)
 dataset = get_dataset(dataset_name, model_config['num_layers'], sparse=False)
 
+if model_config['use_x']:
+    num_input_features = dataset.num_node_features
+elif model_config['map_x_to_u']:
+    num_input_features = 1 + dataset.num_node_features
+else:
+    num_input_features = 1
+
+
 
 def run_config(model_config):
-    print(model_config)
-    model = SMP(**model_config, num_input_features= 1 + dataset.num_node_features,
+    print("Args", args)
+    print("Model Config", model_config)
+    model = SMP(**model_config, num_input_features=num_input_features,
                 num_classes=dataset.num_classes).to(device)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.5, weight_decay=args.weight_decay)
@@ -102,15 +111,24 @@ def run_config(model_config):
     return best_epoch, mean_acc_best_epoch, final_std
 
 
-n_layers = [1, 3]
-hidden_f = [64, 128]
+# layers_arr = [3, 5]
+# lr_arr = [0.01, 0.001]
+layers_lr_arr = [[3, 0.01], [3, 0.001], [5, 0.001]]
+decay_arr = [[0.5, 50], [0.9, 10], [0.9, 50]]
+dropout_arr = [0, 0.5]
 
 results = []
-for layers, hidden in product(n_layers, hidden_f):
+for layers_lr, decay, dropout in product(layers_lr_arr, decay_arr, dropout_arr):
+    layers = layers_lr[0]
+    lr = layers_lr[1]
     model_config['num_layers'] = layers
-    model_config['hidden_final'] = hidden
+    args.lr = lr
+    args.lr_decay_factor = decay[0]
+    args.lr_decay_step_size = decay[1]
+    args.dropout_prob = dropout
+
     epoch, acc, std = run_config(model_config)
-    results.append([layers, hidden, acc, std, epoch])
+    results.append([layers, lr, decay[0], decay[1], dropout, acc, std, epoch])
 
 results = np.array(results)
 if args.wandb:
@@ -118,7 +136,7 @@ if args.wandb:
 
 print("Dataset:", dataset_name)
 for res in results:
-    print("{} layers - {} hidden final: Average acc = {} +- {}, best epoch at {}".format(*res))
+    print("Layers: {} - Lr: {} - Decay:{} every {} - Dropout: {} Average acc = {} +- {}, best epoch at {}".format(*res))
 
 
 

@@ -3,21 +3,18 @@ import torch.nn.functional as F
 import torch.nn as nn
 from models.smp_layers import SimpleTypeASMPLayer
 from models.utils.layers import GraphExtractor, EdgeCounter, BatchNorm
-from models.utils.misc import create_batch_info
+from models.utils.misc import create_batch_info, map_x_to_u
 
 
 class SMP(torch.nn.Module):
     def __init__(self, num_input_features: int, num_classes: int, num_layers: int, hidden: int,
-                 hidden_final: int, dropout_prob: float, use_batch_norm: bool, use_x: bool,
+                 hidden_final: int, dropout_prob: float, use_batch_norm: bool, use_x: bool, map_x_to_u: bool,
                  simplified: bool):
         super().__init__()
-        self.use_x = use_x
+        self.map_x_to_u, self.use_x = map_x_to_u, use_x
         self.dropout_prob = dropout_prob
         self.use_batch_norm = use_batch_norm
         self.edge_counter = EdgeCounter()
-        if not self.use_x:
-            num_input_features = 1
-        print("Use x:", use_x)
 
         self.no_prop = GraphExtractor(in_features=num_input_features, out_features=hidden_final, use_x=use_x)
         self.initial_lin = nn.Linear(num_input_features, hidden)
@@ -43,7 +40,10 @@ class SMP(torch.nn.Module):
 
         # Create the context matrix
         if self.use_x:
+            assert x is not None
             u = x
+        elif self.map_x_to_u:
+            u = map_x_to_u(data, batch_info)
         else:
             u = data.x.new_zeros((data.num_nodes, batch_info['n_colors']))
             u.scatter_(1, data.coloring, 1)

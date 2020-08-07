@@ -46,7 +46,6 @@ class SMP(torch.nn.Module):
     def forward(self, data):
         """ data.x: (num_nodes, num_features)"""
         x, edge_index, batch, batch_size = data.x, data.edge_index, data.batch, data.num_graphs
-
         batch_info = create_batch_info(data, self.edge_counter)
 
         # Create the context matrix

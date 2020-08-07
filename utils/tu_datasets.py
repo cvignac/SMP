@@ -33,10 +33,11 @@ def get_dataset(name, k, sparse=True, cleaned=False):
     else:
         transform = None
 
-    dataset = TUDataset(path, name, transform, cleaned=cleaned)
+    dataset = TUDataset(path, name, transform, use_node_attr=True, cleaned=cleaned)
     dataset.data.edge_attr = None
 
     if dataset.data.x is None:
+        print("Warning: a one-hot encoding of the node degrees is created - do not use map_x_to_u")
         max_degree = 0
         degs = []
         for data in dataset:
