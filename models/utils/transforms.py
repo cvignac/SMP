@@ -6,22 +6,16 @@ from torch_geometric.data import Data
 from networkx.algorithms.shortest_paths.unweighted import all_pairs_shortest_path_length
 from networkx.algorithms.coloring import greedy_color
 import numpy as np
+from sklearn.preprocessing import OneHotEncoder
 
 
 class EyeTransform(object):
-    r"""Adds the node degree as one hot encodings to the node features.
+    def __init__(self, max_num_nodes):
+        self.max_num_nodes = max_num_nodes
 
-    Args:
-        max_degree (int): Maximum degree.
-        in_degree (bool, optional): If set to :obj:`True`, will compute the
-            in-degree of nodes instead of the out-degree.
-            (default: :obj:`False`)
-        cat (bool, optional): Concat node degrees to node features instead
-            of replacing them. (default: :obj:`True`)
-    """
     def __call__(self, data):
         n = data.x.shape[0]
-        data.x = torch.eye(n, dtype=torch.float)
+        data.x = torch.eye(n, self.max_num_nodes, dtype=torch.float)
         return data
 
     def __repr__(self):
@@ -100,3 +94,24 @@ class KHopColoringTransform(object):
 
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__, self.k)
+
+
+class OneHotNodeEdgeFeatures(object):
+    def __init__(self, node_types, edge_types):
+        self.c = node_types
+        self.d = edge_types
+
+    def __call__(self, data):
+        n = data.x.shape[0]
+        node_encoded = torch.zeros((n, self.c), dtype=torch.float32)
+        node_encoded.scatter_(1, data.x.long(), 1)
+        data.x = node_encoded
+        e = data.edge_attr.shape[0]
+        edge_encoded = torch.zeros((e, self.d), dtype=torch.float32)
+        edge_attr = (data.edge_attr - 1).long().unsqueeze(-1)
+        edge_encoded.scatter_(1, edge_attr, 1)
+        data.edge_attr = edge_encoded
+        return data
+
+    def __repr__(self):
+        return str(self.__class__.__name__)

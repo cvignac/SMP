@@ -1,0 +1,12 @@
+# Model properties
+model_name: SMP
+layer_type: ZincSMP         # ZincSMP or FilmZincSMP
+hidden: 32
+hidden_final: 128
+num_layers: 10
+use_x: False
+num_towers: 1
+use_batch_norm: True
+map_x_to_u: True
+simplified: False
+residual: False

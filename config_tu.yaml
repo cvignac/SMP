@@ -1,4 +1,4 @@
-dataset_name: 'IMDB-MULTI'
+dataset_name: 'COLLAB'
 num_layers: 3
 hidden: 32
 hidden_final: 64

@@ -13,6 +13,17 @@
           </excludedPaths>
         </serverdata>
       </paths>
+      <paths name="vignac@sticluster003.iccluster.epfl.ch:22 (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/vignac/SMP" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/data" />
+            <excludedPath local="true" path="$PROJECT_DIR$/wandb" />
+          </excludedPaths>
+        </serverdata>
+      </paths>
     </serverData>
   </component>
 </project>

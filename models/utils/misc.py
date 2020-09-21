@@ -59,3 +59,4 @@ def map_x_to_u(data, batch_info):
 
     u = torch.cat((u, u_x), dim=2)
     return u
+
