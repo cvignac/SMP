@@ -82,10 +82,10 @@ class FeatureExtractor(nn.Module):
 
 class Powerful(nn.Module):
     def __init__(self, num_classes: int, num_layers: int, hidden: int, hidden_final: int, dropout_prob: float,
-                 layer_after_conv: bool = False):
+                 simplified: bool):
         super().__init__()
         layers_per_conv = 1
-        self.layer_after_conv = layer_after_conv
+        self.layer_after_conv = not simplified
         self.dropout_prob = dropout_prob
         self.no_prop = FeatureExtractor(1, hidden_final)
         initial_conv = PowerfulLayer(1, hidden, layers_per_conv)
@@ -98,8 +98,7 @@ class Powerful(nn.Module):
         for i in range(num_layers):
             self.bns.append(nn.BatchNorm2d(hidden))
             self.feature_extractors.append(FeatureExtractor(hidden, hidden_final))
-        self.layer_after_conv = layer_after_conv
-        if layer_after_conv:
+        if self.layer_after_conv:
             self.after_conv = nn.Linear(hidden_final, hidden_final)
         self.final_lin = nn.Linear(hidden_final, num_classes)
 

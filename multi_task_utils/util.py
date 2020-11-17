@@ -1,3 +1,5 @@
+# This file was adapted from https://github.com/lukecavabarrett/pna
+
 from __future__ import division
 from __future__ import print_function
 from torch_geometric import data
@@ -126,7 +128,6 @@ def total_loss(output, target, loss='mse', only_nodes=False, only_graph=False):
     weighted_average = (nodes_loss * output[0].shape[-1] + graph_loss * output[1].shape[-1]) / (
             output[0].shape[-1] + output[1].shape[-1])
     return weighted_average
-
 
 
 def total_loss_multiple_batches(output, target, loss='mse', only_nodes=False, only_graph=False):

@@ -1,5 +1,6 @@
 import torch
 
+
 def create_batch_info(data, edge_counter):
     """ Compute some information about the batch that will be used by SMP."""
     x, edge_index, batch, batch_size = data.x, data.edge_index, data.batch, data.num_graphs
@@ -37,5 +38,26 @@ def create_batch_info(data, edge_counter):
                   'average_edges': average_edges[:, :, None],
                   'coloring': data.coloring,
                   'n_colors': n_colors,
-                  'mask': mask}
+                  'mask': mask      # Used because of batching - it tells which entries of u are not used by the graph
+                  }
     return batch_info
+
+
+def map_x_to_u(data, batch_info):
+    """ map the node features to the right row of the initial local context."""
+    x = data.x
+    u = x.new_zeros((data.num_nodes, batch_info['n_colors']))
+    u.scatter_(1, data.coloring, 1)
+    u = u[..., None]
+
+    u_x = u.new_zeros((u.shape[0], u.shape[1], x.shape[1]))
+
+    n_features = x.shape[1]
+    coloring = batch_info['coloring']       # N x 1
+    expanded_colors = coloring[..., None].expand(-1, -1, n_features)
+
+    u_x = u_x.scatter_(dim=1, index=expanded_colors, src=x[:, None, :])
+
+    u = torch.cat((u, u_x), dim=2)
+    return u
+

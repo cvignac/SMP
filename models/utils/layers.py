@@ -37,6 +37,9 @@ class BatchNorm(nn.Module):
         self.bn = nn.BatchNorm1d(channels)
         self.use_x = use_x
 
+    def reset_parameters(self):
+        self.bn.reset_parameters()
+
     def forward(self, u):
         if self.use_x:
             return self.bn(u)
@@ -83,12 +86,12 @@ class XtoGlobal(Linear):
         return self.lin.forward(g)
 
 
-class ChannelWiseU(nn.Module):
-    def __init__(self, in_features: int, out_features: int, n_groups=None):
+class EntrywiseU(nn.Module):
+    def __init__(self, in_features: int, out_features: int, num_towers=None):
         super().__init__()
-        if n_groups is None:
-            n_groups = in_features
-        self.lin1 = torch.nn.Conv1d(in_features, out_features, kernel_size=1, groups=n_groups, bias=False)
+        if num_towers is None:
+            num_towers = in_features
+        self.lin1 = torch.nn.Conv1d(in_features, out_features, kernel_size=1, groups=num_towers, bias=False)
 
     def forward(self, u):
         """ u: N x colors x channels. """
@@ -97,45 +100,28 @@ class ChannelWiseU(nn.Module):
         return u.transpose(1, 2)
 
 
-class UtoU(nn.Module):
-    def __init__(self, in_features: int, out_features: int, bias: bool = True, gain: float = 1):
+class EntryWiseX(nn.Module):
+    def __init__(self, in_features: int, out_features: int, n_groups=None, residual=False):
         super().__init__()
-        self.lin1 = Linear(in_features, out_features, bias, gain)
-        self.lin2 = Linear(in_features, out_features, False, 0.1 * gain)
-        self.lin3 = Linear(in_features, out_features, False, 0.1 * gain)
+        self.residual = residual
+        if n_groups is None:
+            n_groups = in_features
+        self.lin1 = torch.nn.Conv1d(in_features, out_features, kernel_size=1, groups=n_groups, bias=False)
 
-    def forward(self, u: Tensor, batch_info: dict):
-        n = batch_info['num_nodes']
-        num_colors = u.shape[1]
-        out_feat = self.lin1.lin.out_features
-        mask = batch_info['mask'][..., None].expand(n, num_colors, out_feat)
-        normalizer = batch_info['n_batch']
-        mean2 = torch.sum(u / normalizer, dim=1)     # N, in_feat
-        # 1. Transform u element-wise
-        out = self.lin1.lin.forward(u)                   # N, n_colors, out_feat
+    def forward(self, x, batch_info=None):
+        """ x: N x  channels. """
+        new_x = self.lin1(x.unsqueeze(-1)).squeeze()
+        return (new_x + x) if self.residual else new_x
 
-        # 2. Put in self of each line the sum over each line
-        z2 = self.lin2.lin.forward(mean2)                # N, out_feat
-        z = z2[:, None, :]                                    # N, 1, out_feat
-        index_tensor = batch_info['coloring'][:, :, None].expand(out.shape[0], 1, out_feat)
-        out.scatter_add_(1, index_tensor, z)      # n, n_colors, out_feat
-
-        # 3. Put everywhere the sum over each line
-        z3 = self.lin3.lin.forward(mean2)[:, None, :]         # N, out_feat
-        out3 = z3.expand(n, num_colors, out_feat)
-        out += out3 * mask
-        return out
-
-
-class SimpleUtoU(nn.Module):
+class UtoU(nn.Module):
     def __init__(self, in_features: int, out_features: int, residual=True, n_groups=None):
         super().__init__()
         if n_groups is None:
-            n_groups = out_features
+            n_groups = 1
         self.residual = residual
         self.lin1 = torch.nn.Conv1d(in_features, out_features, kernel_size=1, groups=n_groups, bias=True)
-        self.lin2 = torch.nn.Conv1d(in_features, out_features, kernel_size=1, groups=n_groups, bias=True)
-        self.lin3 = torch.nn.Conv1d(in_features, out_features, kernel_size=1, groups=n_groups, bias=True)
+        self.lin2 = torch.nn.Conv1d(in_features, out_features, kernel_size=1, groups=n_groups, bias=False)
+        self.lin3 = torch.nn.Conv1d(in_features, out_features, kernel_size=1, groups=n_groups, bias=False)
 
     def forward(self, u: Tensor, batch_info: dict = None):
         """ U: N x n_colors x channels"""
@@ -143,25 +129,27 @@ class SimpleUtoU(nn.Module):
         n = batch_info['num_nodes']
         num_colors = u.shape[1]
         out_feat = self.lin1.out_channels
+
         mask = batch_info['mask'][..., None].expand(n, num_colors, out_feat)
         normalizer = batch_info['n_batch']
         mean2 = torch.sum(u / normalizer, dim=1)     # N, in_feat
         mean2 = mean2.unsqueeze(-1)                  # N, in_feat, 1
         # 1. Transform u element-wise
-        u = u.permute(0, 2, 1)
+        u = u.permute(0, 2, 1)                       # In conv1d, channel dimension is second
         out = self.lin1(u).permute(0, 2, 1)
 
         # 2. Put in self of each line the sum over each line
-        z2 = 0.1 * self.lin2(mean2)                            # N, out_feat, 1
+        # The 0.1 factor is here to bias the network in favor of learning powers of the adjacency
+        z2 = self.lin2(mean2) * 0.1                       # N, out_feat, 1
         z2 = z2.transpose(1, 2)                          # N, 1, out_feat
         index_tensor = batch_info['coloring'][:, :, None].expand(out.shape[0], 1, out_feat)
         out.scatter_add_(1, index_tensor, z2)      # n, n_colors, out_feat
 
         # 3. Put everywhere the sum over each line
-        z3 = 0.1 * self.lin3(mean2)                       # N, out_feat, 1
+        z3 = self.lin3(mean2)                       # N, out_feat, 1
         z3 = z3.transpose(1, 2)                     # N, 1, out_feat
         out3 = z3.expand(n, num_colors, out_feat)
-        out += out3 * mask                          # Mask the extra colors
+        out += out3 * mask * 0.1                         # Mask the extra colors
         if self.residual:
             return old_u + out
         return out
@@ -172,6 +160,10 @@ class UtoGlobal(nn.Module):
         super().__init__()
         self.lin1 = Linear(in_features, out_features, bias, gain=gain)
         self.lin2 = Linear(in_features, out_features, bias, gain=gain)
+
+    def reset_parameters(self):
+        for layer in [self.lin1, self.lin2]:
+            layer.reset_parameters()
 
     def forward(self, u, batch_info: dict, method='mean'):
         """ u: (num_nodes, colors, in_features)
@@ -221,13 +213,19 @@ class NodeExtractor(nn.Module):
 
 
 class GraphExtractor(nn.Module):
-    def __init__(self, in_features: int, out_features: int, use_x: bool):
+    def __init__(self, in_features: int, out_features: int, use_x: bool, simplified=False):
         super().__init__()
-        self.use_x = use_x
+        self.use_x, self.simplified = use_x, simplified
         self.extractor = (XtoGlobal if self.use_x else UtoGlobal)(in_features, out_features, True, 1)
         self.lin = nn.Linear(out_features, out_features)
 
+    def reset_parameters(self):
+        for layer in [self.extractor, self.lin]:
+            layer.reset_parameters()
+
     def forward(self, u: Tensor, batch_info: dict):
         out = self.extractor(u, batch_info)
+        if self.simplified:
+            return out
         out = out + self.lin(F.relu(out))
         return out

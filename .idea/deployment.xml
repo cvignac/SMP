@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData">
+    <serverData>
+      <paths name="vignac@lts4srv2.epfl.ch:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/vignac/SMP" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/data" />
+            <excludedPath local="true" path="$PROJECT_DIR$/wandb" />
+          </excludedPaths>
+        </serverdata>
+      </paths>
+      <paths name="vignac@sticluster003.iccluster.epfl.ch:22 (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/vignac/SMP" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/data" />
+            <excludedPath local="true" path="$PROJECT_DIR$/wandb" />
+          </excludedPaths>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>

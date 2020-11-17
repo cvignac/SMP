@@ -1,3 +1,5 @@
+# This file was adapted from https://github.com/lukecavabarrett/pna
+
 from __future__ import division
 from __future__ import print_function
 
@@ -12,7 +14,7 @@ import torch
 import torch.optim as optim
 import numpy.random as npr
 from torch_geometric.data import DataLoader
-from models.smp_multi_task import SMP
+from models.model_multi_task import SMP
 from multi_task_utils.util import load_dataset, to_torch_geom, specific_loss_torch_geom
 
 log_loss_tasks = ["log_shortest_path", "log_eccentricity", "log_laplacian",
