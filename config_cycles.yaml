@@ -1,20 +1,19 @@
 # Model properties
-model_name: SMP         # PPGN, SMP, RING_GNN or GIN
+model_name: GIN         # PPGN, SMP, RING_GNN or GIN
 num_towers: 1
 hidden: 32
 hidden_final: 128
 dropout_prob: 0.5
 num_classes: 2
-use_x: False
+use_x: False          # Use_x is used for ablation studies
 num_layers: -1        # If None, set n_layers = k
 
 # Options specific to SMP
 layer_type: FastSMP
-map_x_to_u: False
 simplified: False
 
-# Options specific to gin
+# Options specific to GIN
 one_hot: False          # Use a one-hot encoding of the degree as node features
-identifiers: False      # Use a one hot encoding of the nodes as node features
+identifiers: False     # Use a one hot encoding of the nodes as node features
 random: False           # Use random identifiers as node features
-relational_pooling: 0
+relational_pooling: 0   # if == p > 0, sum over p random permutations of the nodes

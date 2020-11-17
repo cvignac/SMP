@@ -4,8 +4,9 @@ models/__pycache__/
 data/
 multi_task_utils/__pycache__/
 __pycache__/
-utils/__pycache__/
+multi_task_utils/__pycache__/
 wandb/
 data/.DS_Store
 tests/
 models
+saved_models/

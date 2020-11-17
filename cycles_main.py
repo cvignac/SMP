@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# ## Example k-cycle classification
-
-
 import os
 import torch
 import torch.nn.functional as F
@@ -13,13 +10,14 @@ import argparse
 import numpy as np
 import time
 import yaml
-from models.smp_cycles import SMP
+from models.model_cycles import SMP
 from models.gin import GIN
 from datasets_generation.build_cycles import FourCyclesDataset
 from models.utils.transforms import EyeTransform, RandomId, DenseAdjMatrix
 from models import ppgn
 from models.ring_gnn import RingGNN
 from easydict import EasyDict as edict
+
 
 # Change the following to point to the the folder where the datasets are stored
 if os.path.isdir('/datasets2/'):
@@ -43,7 +41,7 @@ parser.add_argument('--wandb', action='store_true',
 parser.add_argument('--gpu', type=int, help='Id of gpu device. By default use cpu')
 parser.add_argument('--lr', type=float, default=0.001, help="Initial learning rate")
 parser.add_argument('--batch-size', type=int, default=16)
-parser.add_argument('--weight-decay', type=float, default=1e-6)
+parser.add_argument('--weight-decay', type=float, default=1e-4)
 parser.add_argument('--clip', type=float, default=10, help="Gradient clipping")
 parser.add_argument('--name', type=str, help="Name for weights and biases")
 parser.add_argument('--proportion', type=float, default=1.0,
@@ -57,8 +55,7 @@ test_every_epoch = 5
 print_every_epoch = 1
 log_interval = 20
 
-# Store maximum number of nodes for each pair (k, n)
-# Used by provably powerful graph networks
+# Store maximum number of nodes for each pair (k, n) -- this value is used by provably powerful graph networks
 max_num_nodes = {4: {12: 12, 20: 20, 28: 28, 36: 36},
                  6: {20: 25, 31: 38, 42: 52, 56: 65},
                  8: {28: 38, 50: 56, 66: 76, 72: 90}}
@@ -70,9 +67,6 @@ max_degree = {4: {12: 4, 20: 6, 28: 7, 36: 7},
 n_gener = {4: {'train': 20, 'val': 28, 'test': 36},
            6: {'train': 31, 'val': 42, 'test': 56},
            8: {'train': 50, 'val': 66, 'test': 72}}
-
-if args.name:
-    args.wandb = True
 
 # Handle the device
 use_cuda = args.gpu is not None and torch.cuda.is_available()
@@ -89,15 +83,15 @@ print('Device used:', device)
 # Load the config file of the model
 with open(yaml_file) as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
+    config['map_x_to_u'] = False        # Not used here
     config = edict(config)
     print(config)
 
 model_name = config['model_name']
+
 config.pop('model_name')
 if model_name == 'SMP':
     model_name = config['layer_type']
-
-
 
 if args.name is None:
     if model_name != 'GIN':
@@ -105,7 +99,7 @@ if args.name is None:
     else:
         if config.relational_pooling > 0:
             args.name = 'RP'
-        if config.one_hot:
+        elif config.one_hot:
             args.name = 'OneHotDeg'
         elif config.identifiers:
             args.name = 'OneHotNod'
@@ -121,6 +115,9 @@ if args.name is None:
 if not os.path.isdir('./saved_models/' + args.name) and args.generalization:
     os.mkdir('./saved_models/' + args.name)
 
+
+if args.name:
+    args.wandb = True
 if args.wandb:
     import wandb
     wandb.init(project="smp", config=config, name=args.name)
@@ -129,6 +126,8 @@ if args.wandb:
 if args.n is None:
     args.n = n_gener[args.k]['train']
 
+if config.num_layers == -1:
+    config.num_layers = args.k
 
 
 def train(epoch):
@@ -148,8 +147,9 @@ def train(epoch):
             optimizer.step()
         return loss_all / len(train_loader.dataset)
     else:
+        # For relational pooling, we sample several permutations of each graph
         for batch_idx, data in enumerate(train_loader):
-            for repetition in range(args.relational_pooling):
+            for repetition in range(config.relational_pooling):
                 for i in range(args.batch_size):
                     n_nodes = int(torch.sum(data.batch == i).item())
                     p = torch.randperm(n_nodes)
@@ -182,34 +182,40 @@ def lr_scheduler(lr, epoch, optimizer):
 
 
 # Define the transform to use in the dataset
-if model_name == 'GIN':
+transform=None
+if 'GIN' or 'RP' in model_name:
     if config.one_hot:
-        max_degree = max_degree[args.k][args.n]
-        transform = OneHotDegree(max_degree, cat=False)
-        config.num_input_features = max_degree + 1
+        # Cannot always be used in an inductive setting,
+        # because the maximal degree might be bigger than during training
+        degree = max_degree[args.k][args.n]
+        transform = OneHotDegree(degree, cat=False)
+        config.num_input_features = degree + 1
     elif config.identifiers:
+        # Cannot be used in an inductive setting
         transform = EyeTransform(max_num_nodes[args.k][args.n])
         config.num_input_features = max_num_nodes[args.k][args.n]
     elif config.random:
+        # Can be used in an inductive setting
         transform = RandomId()
+        transform_val = RandomId()
+        transform_test = RandomId()
         config.num_input_features = 1
-else:
-    transform = None
-    config.num_input_features = 1
 
-
-start = time.time()
-
-if config.num_layers == -1:
-    config.num_layers = args.k
+if transform is None:
+        transform_val = None
+        transform_test = None
+        config.num_input_features = 1
 
 if 'SMP' in model_name:
     config.use_batch_norm = args.k > 6 or args.n > 30
     model = SMP(config.num_input_features, config.num_classes, config.num_layers, config.hidden, config.layer_type,
                  config.hidden_final, config.dropout_prob, config.use_batch_norm, config.use_x, config.map_x_to_u,
                  config.num_towers, config.simplified).to(device)
+
 elif model_name == 'PPGN':
     transform = DenseAdjMatrix(max_num_nodes[args.k][args.n])
+    transform_val = DenseAdjMatrix(max_num_nodes[args.k][n_gener[args.k]['val']])
+    transform_test = DenseAdjMatrix(max_num_nodes[args.k][n_gener[args.k]['test']])
     model = ppgn.Powerful(config.num_classes, config.num_layers, config.hidden,
                           config.hidden_final, config.dropout_prob, config.simplified)
 elif model_name == 'GIN':
@@ -218,8 +224,10 @@ elif model_name == 'GIN':
                 config.hidden, config.hidden_final, config.dropout_prob, config.use_batch_norm)
 elif model_name == 'RING_GNN':
     transform = DenseAdjMatrix(max_num_nodes[args.k][args.n])
+    transform_val = DenseAdjMatrix(max_num_nodes[args.k][n_gener[args.k]['val']])
+    transform_test = DenseAdjMatrix(max_num_nodes[args.k][n_gener[args.k]['test']])
     model = RingGNN(config.num_classes, config.num_layers, config.hidden, config.hidden_final, config.dropout_prob,
-                    config.layer_after_conv)
+                    config.simplified)
 
 model = model.to(device)
 
@@ -231,7 +239,7 @@ batch_size = args.batch_size
 if args.generalization:
     train_data = FourCyclesDataset(args.k, n_gener[args.k]['train'], rootdir, train=True, transform=transform)
     test_data = FourCyclesDataset(args.k, n_gener[args.k]['train'], rootdir, train=False, transform=transform)
-    gener_data_val = FourCyclesDataset(args.k, n_gener[args.k]['val'], rootdir, train=False, transform=transform)
+    gener_data_val = FourCyclesDataset(args.k, n_gener[args.k]['val'], rootdir, train=False, transform=transform_val)
     train_loader = DataLoader(train_data, batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size, shuffle=False)
     gener_val_loader = DataLoader(gener_data_val, batch_size, shuffle=False)
@@ -242,9 +250,8 @@ else:
     train_loader = DataLoader(train_data, batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size, shuffle=False)
 
-
-
 print("Starting to train")
+start = time.time()
 best_epoch = -1
 best_generalization_acc = 0
 for epoch in range(args.epochs):
@@ -260,17 +267,18 @@ for epoch in range(args.epochs):
             print(f'Test accuracy: {acc_test:2.5f}')
             if args.generalization:
                 acc_generalization = test(gener_val_loader)
+                print("Validation generalization accuracy", acc_generalization)
                 if args.wandb:
                     wandb.log({"Epoch": epoch, "Duration": duration, "Train loss": tr_loss, "train accuracy": acc_train,
                                "Test acc": acc_test, 'Gene eval': acc_generalization})
-                if acc_generalization > best_generalization_acc and acc_test > 0.9:
+                if acc_generalization > best_generalization_acc:
                     print(f"New best generalization error + accuracy > 90% at epoch {epoch}")
                     # Remove existing models
                     folder = f'./saved_models/{args.name}/'
                     files_in_folder = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
                     for file in files_in_folder:
                         try:
-                            os.remove(file)
+                            os.remove(folder + file)
                         except:
                             print("Could not remove file", file)
                     # Save new model
@@ -296,10 +304,11 @@ print("Done.")
 
 if args.generalization:
     new_n = n_gener[args.k]['test']
-    gener_data_test = FourCyclesDataset(args.k, new_n, rootdir, train=False, transform=transform)
+    gener_data_test = FourCyclesDataset(args.k, new_n, rootdir, train=False, transform=transform_test)
     gener_test_loader = DataLoader(gener_data_test, batch_size, shuffle=False)
-    model = model.load_state_dict(torch.load(f"./saved_models/{args.name}/epoch{best_epoch}.pkl", map_location=device))
+    model = torch.load(f"./saved_models/{args.name}/epoch{best_epoch}.pkl", map_location=device)
+    model.eval()
     acc_test_generalization = test(gener_test_loader)
-    print(f"Generalization accuracy on {args.k} cycles with {new_n} nodes", acc_test)
+    print(f"Generalization accuracy on {args.k} cycles with {new_n} nodes", acc_test_generalization)
     if args.wandb:
-        wandb.run.summary['test_generalization'] = acc_test
+        wandb.run.summary['test_generalization'] = acc_test_generalization

@@ -1,12 +1,12 @@
 # Model properties
-model_name: SMP
-layer_type: ZincSMP         # ZincSMP or FilmZincSMP
-hidden: 32
-hidden_final: 128
-num_layers: 10
-use_x: False
-num_towers: 1
+hidden: 32              # internal representation
+num_towers: 8           # used within each SMP layer
+hidden_final: 128       # Extracted feature
+num_layers: 12
+use_x: False             # used for ablation study
 use_batch_norm: True
-map_x_to_u: True
-simplified: False
-residual: False
+map_x_to_u: True        # map the initial node features to the local context
+simplified: False       # less layers in the feature extractor
+residual: False         # residual connections when transorming local contexts
+use_edge_features: True
+shared_extractor: True  # share the feature extractor across layers

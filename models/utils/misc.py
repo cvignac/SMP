@@ -44,6 +44,7 @@ def create_batch_info(data, edge_counter):
 
 
 def map_x_to_u(data, batch_info):
+    """ map the node features to the right row of the initial local context."""
     x = data.x
     u = x.new_zeros((data.num_nodes, batch_info['n_colors']))
     u.scatter_(1, data.coloring, 1)

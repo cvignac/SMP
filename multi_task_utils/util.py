@@ -1,3 +1,5 @@
+# This file was adapted from https://github.com/lukecavabarrett/pna
+
 from __future__ import division
 from __future__ import print_function
 from torch_geometric import data

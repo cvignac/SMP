@@ -1,9 +1,0 @@
-dataset_name: 'COLLAB'
-num_layers: 3
-hidden: 32
-hidden_final: 64
-dropout_prob: 0.5
-use_batch_norm: False
-use_x: False
-map_x_to_u: False
-simplified: True

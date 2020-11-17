@@ -4,3 +4,5 @@ argparse
 numpy
 pickle
 networkx
+easydict
+wandb

@@ -1,15 +1,11 @@
+# Adapted from https://github.com/leichen2018/Ring-GNN/blob/master/src/model.py
+
 import torch
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-# import dgl
-# from dgl.graph import DGLGraph
-# from dgl.utils import Index
-
-import pickle
-import os
 
 class FeatureExtractor(nn.Module):
     def __init__(self, in_features: int, out_features: int):
@@ -81,27 +77,6 @@ class MLP(nn.Module):
             x = F.relu(x)
 
         return self.linears[-1](x)
-
-
-# class Ring_GNN(nn.Module):
-#     def __init__(self, nodeclasses, n_classes, avgnodenum=10, hidden=32, radius=2):
-#         super(Ring_GNN, self).__init__()
-#         self.depth = [th.LongTensor([nodeclasses]), th.LongTensor([64]), th.LongTensor([64])]
-#         self.equi_modulelist = nn.ModuleList([equi_2_to_2(m, n, radius=radius, k2_init=0.5 / avgnodenum) for m, n in
-#                                               zip(self.depth[:-1], self.depth[1:])])
-#         self.prediction = MLP([th.sum(th.stack(self.depth)).item(), hidden, n_classes])
-#
-#     def forward(self, x):
-#         x_list = [x]
-#         for layer in self.equi_modulelist:
-#             x = F.relu(layer(x))
-#             x_list.append(x)
-#
-#         x_list = [th.sum(th.sum(x, dim=3), dim=2) for x in x_list]
-#         x_list = th.cat(x_list, dim=1)
-#         score = self.prediction(x_list)
-#
-#         return score
 
 
 class equi_2_to_2(nn.Module):
@@ -251,64 +226,3 @@ def ops_2_to_2(inputs, dim, normalization='inf', normalization_val=1.0):  # N x 
     print("$%^&*(*&^%$#$%^&*(*&^%$%^&*(*&^%$%^&*(")
     '''
     return [op1, op2, op3, op4, op5, op6, op7, op8, op9, op10, op11, op12, op13, op14, op15]
-
-#
-# def input_single():
-#     # np.random.seed(18)
-#     iso = False
-#     adj_list = pickle.load(open(os.path.join('Synthetic_Data', 'graphs_Kary_Deterministic_Graphs.pkl'), 'rb'))
-#     y = th.load(os.path.join('Synthetic_Data', 'y_Kary_Deterministic_Graphs.pt'))
-#
-#     while True:
-#         selected_index = np.random.randint(low=0, high=150, size=2)
-#         if iso and y[selected_index[0]] == y[selected_index[1]]:
-#             break
-#         if iso == False and y[selected_index[0]] != y[selected_index[1]]:
-#             break
-#
-#     adj_list = [adj_list[i] for i in selected_index]
-#     print(selected_index)
-#     _, G = extract_deg_adj(convert_to_graph([adj_list[0]]))
-#     _, G_prime = extract_deg_adj(convert_to_graph([adj_list[1]]))
-#     G = G[0].to_dense()
-#     G = G.unsqueeze(0).unsqueeze(0)
-#     G_prime = G_prime[0].to_dense()
-#     G_prime = G_prime.unsqueeze(0).unsqueeze(0)
-#     return G, G_prime
-
-#
-# def convert_to_graph(coo_list):
-#     graph_list = []
-#     for coo in coo_list:
-#         g = dgl.DGLGraph()
-#         g.from_scipy_sparse_matrix(coo)
-#         graph_list.append(g)
-#
-#     return graph_list
-#
-#
-# def extract_deg_adj(graph_list):
-#     in_degrees = lambda g: g.in_degrees(
-#         Index(np.arange(0, g.number_of_nodes()))).unsqueeze(1).float()
-#     degs = [in_degrees(g) for g in graph_list]
-#     adjs = [g.adjacency_matrix() for g in graph_list]
-#     return degs, adjs
-#
-#
-# def test():
-#     model = Ring_GNN()
-#     dim = 20
-#     test_input = th.ones(th.Size([5, 4, 20, 20]))
-#     print(model(test_input))
-#     print('ok')
-#
-#
-# def main():
-#     model = Ring_GNN()
-#     input1, input2 = input_single()
-#     print(model(input1))
-#     print(model(input1) - model(input2))
-#
-#
-# if __name__ == '__main__':
-#     main()
