@@ -8,5 +8,4 @@ multi_task_utils/__pycache__/
 wandb/
 data/.DS_Store
 tests/
-models
 saved_models/
