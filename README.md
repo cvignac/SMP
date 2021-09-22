@@ -1,4 +1,8 @@
-# SMP
+# Building powerful and equivariant graph neural networks with structural message-passing
+
+This paper contains code for the paper *Building powerful and equivariant graph neural networks with structural message-passing* (Neurips 2020) by
+Clément Vignac, Andreas Loukas and Pascal Frossard 
+The paper can be found at https://papers.nips.cc/paper/2020/file/a32d7eeaae19821fd9ce317f3ce952a7-Paper.pdf
 
 This folder contains the source code used for Structural Message passing for three tasks:
   - Cycle detection
@@ -116,3 +120,19 @@ We advise you to use the "weights and biases" library as well, as we found it ve
 
 ## License
 MIT
+
+## Cite this paper
+
+@inproceedings{NEURIPS2020_a32d7eea,
+ author = {Vignac, Cl\'{e}ment and Loukas, Andreas and Frossard, Pascal},
+ booktitle = {Advances in Neural Information Processing Systems},
+ editor = {H. Larochelle and M. Ranzato and R. Hadsell and M. F. Balcan and H. Lin},
+ pages = {14143--14155},
+ publisher = {Curran Associates, Inc.},
+ title = {Building powerful and equivariant graph neural networks with structural message-passing},
+ url = {https://proceedings.neurips.cc/paper/2020/file/a32d7eeaae19821fd9ce317f3ce952a7-Paper.pdf},
+ volume = {33},
+ year = {2020}
+}
+
+
