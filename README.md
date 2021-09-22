@@ -1,8 +1,30 @@
 # Building powerful and equivariant graph neural networks with structural message-passing
 
 This paper contains code for the paper *Building powerful and equivariant graph neural networks with structural message-passing* (Neurips 2020) by
-Clément Vignac, Andreas Loukas and Pascal Frossard 
-The paper can be found at https://papers.nips.cc/paper/2020/file/a32d7eeaae19821fd9ce317f3ce952a7-Paper.pdf
+[Clément Vignac](https://cvignac.github.io/), [Andreas Loukas](https://andreasloukas.blog/) and [Pascal Frossard](https://www.epfl.ch/labs/lts4/people/people-current/frossard/).
+[Link to the paper](https://papers.nips.cc/paper/2020/file/a32d7eeaae19821fd9ce317f3ce952a7-Paper.pdf)
+
+Abstract:
+
+Message-passing has proved to be an effective way to design graph neural networks,
+as it is able to leverage both permutation equivariance and an inductive bias towards
+learning local structures in order to achieve good generalization. However, current
+message-passing architectures have a limited representation power and fail to learn
+basic topological properties of graphs. We address this problem and propose a
+powerful and equivariant message-passing framework based on two ideas: first,
+we propagate a one-hot encoding of the nodes, in addition to the features, in order
+to learn a local context matrix around each node. This matrix contains rich local
+information about both features and topology and can eventually be pooled to build
+node representations. Second, we propose methods for the parametrization of the
+message and update functions that ensure permutation equivariance. Having a
+representation that is independent of the specific choice of the one-hot encoding
+permits inductive reasoning and leads to better generalization properties. Experi-
+mentally, our model can predict various graph topological properties on synthetic
+data more accurately than previous methods and achieves state-of-the-art results on
+molecular graph regression on the ZINC dataset.
+
+## Code overview
+
 
 This folder contains the source code used for Structural Message passing for three tasks:
   - Cycle detection
